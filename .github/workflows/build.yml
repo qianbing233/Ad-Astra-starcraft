@@ -1,0 +1,49 @@
+name: NeoGradle Optimized Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'  # NeoForge 1.21+ 支持 Java 21
+        distribution: 'temurin'
+        cache: 'gradle'
+        
+    - name: Configure NeoGradle cache
+      run: |
+        mkdir -p ~/.gradle
+        echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
+        echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
+        echo "org.gradle.configureondemand=true" >> ~/.gradle/gradle.properties
+        
+    - name: Build with Gradle Daemon
+      run: |
+        chmod +x gradlew
+        ./gradlew build --daemon --parallel --build-cache
+        
+    - name: Run NeoForge tests
+      run: ./gradlew test
+        
+    - name: Upload test reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-report
+        path: build/reports/tests/test/
+        
+    - name: Upload JARs
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: neoforge-jars
+        path: |
+          build/libs/*.jar
+          build/distributions/*.zip
